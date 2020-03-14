@@ -1,109 +1,111 @@
 // Copyright (c) Olaru Alexandru <olarualexandru404@gmail.com>
 // Licensed under the MIT license found in the LICENSE file in the root of this repository.
 
+#define SUCCESS 0
+#define ARG_ERR 1
+#define INVALID_FILE 2
+
 #include<stdio.h>
 #include<string.h>
 #include<stdlib.h>
 
-int main(int argc, char *argv[])
+int main(int argc, char **argv)
 {
-	if(argc < 2){ // if there are no command line arguments for the brainfuck file then return
+	if(argc < 2)
+	{
 		printf("Not enough arguments. Usage: ./bfi <path-to-bf-file>\n");
-		return 1;
+		return ARG_ERR;
 	}
 
-	FILE *file = fopen(argv[1], "r");
+	FILE *file;
 
-	char *allowedChars = malloc(8 * sizeof(char)); 
-	allowedChars[0] = '<';
-	allowedChars[1] = '>';
-	allowedChars[2] = '+';
-	allowedChars[3] = '-';
-	allowedChars[4] = '.';
-	allowedChars[5] = ',';
-	allowedChars[6] = '[';
-	allowedChars[7] = ']';
+	if(!(file = fopen(argv[1], "r")))
+	{
+		printf("Invalid file path\n");
+		return INVALID_FILE;
+	}
 
-	int *character = malloc(sizeof(int));
+	char character;
 
-	size_t numberOfValidChars = 0;
+	size_t numberOfValidChars = 0, numberOfLoops = 0;
 
-	while((*character = getc(file)) != EOF)
-		if(strchr(allowedChars, *character)) //find how many characters are valid
+	while((character = getc(file)) != EOF)
+		if(strchr("<>+-.,[]", character))
+		{
+			if(character == 91)
+				++numberOfLoops;
 			++numberOfValidChars;
+		}
 
-	char instructions[numberOfValidChars + 1];
+	char instructions[numberOfValidChars + 1], allocatedMemory[30000] = {0}, *memoryPtr = allocatedMemory;
+	int whileS[numberOfLoops + 1], whileE[numberOfLoops + 1], it = 0, n = 0;
+	memset(whileE, 0, numberOfLoops * sizeof(int));
+	memset(whileS, 0, numberOfLoops * sizeof(int));
+	numberOfLoops = 0;
 
-	fseek(file, 0, SEEK_SET); // 'reset' the file back to the beginning
+	fseek(file, 0, SEEK_SET);
 
-	int it = 0;
-
-	while((*character = getc(file)) != EOF)
-		if(strchr(allowedChars, *character)){ // only add the valid characters to the instructions array
-			instructions[it] = *character;
-			++it;
+	while((character = getc(file)) != EOF)
+		if(strchr("<>+-.,[]", character))
+		{
+			if(character == 91)
+			{
+				whileS[numberOfLoops++] = it;
+			}
+			else if(character == 93)
+			{
+				int k = numberOfLoops - 1;
+				for(; k >= 0; --k)
+				{
+					if(!whileE[k])
+					{
+						whileE[k] = it;
+						break;
+					}
+				}
+			}
+			instructions[it++] = character;
 		}
 
 	fclose(file);
 
-	free(character); free(allowedChars);
-
-	char allocatedMemory[30000] = {0};
-	char *memoryPtr = allocatedMemory;
-
-	it = 0;
-
-	for(; it < sizeof(instructions); ++it){
-		switch(instructions[it]){
-			case 62:
-				++memoryPtr;
-				break;
-			case 60:
-				--memoryPtr;
-				break;
-			case 43:
-				++*memoryPtr;
-				break;
-			case 45:
-				--*memoryPtr;
-				break;
-			case 46:
-				putchar(*memoryPtr);
-				break;
-			case 44:
-				*memoryPtr = getchar();
-				break;
+	for(it = 0; it < sizeof(instructions); ++it)
+	{
+		switch(instructions[it])
+		{
+			case 62: ++memoryPtr;  			  	  break;
+			case 60: --memoryPtr;  			  	  break;
+			case 43: ++*memoryPtr;    		  	  break;
+			case 45: --*memoryPtr; 			  	  break;
+			case 46: putchar(*memoryPtr); 	  	  break;
+			case 44: *memoryPtr = getchar();  	  break;
 			case 91:
-				;
-				char *ptrToCheck = memoryPtr;
-				int whileIt = it;
-				int whileStartIt = it;
-				while(*ptrToCheck){
-					if(instructions[whileIt] == 93){
-						it = whileIt;
-						whileIt = whileStartIt;
-					}
-					else{
-						switch(instructions[whileIt]){
-						case 62:
-							++memoryPtr;
-							break;
-						case 60:
-							--memoryPtr;
-							break;
-						case 43:
-							++*memoryPtr;
-							break;
-						case 45:
-							--*memoryPtr;
+				if(!*memoryPtr)
+				{
+					for(n = 0; n < numberOfLoops; ++n)
+					{
+						if(it == whileS[n])
+						{
+							it = whileE[n];
 							break;
 						}
-						++whileIt;
+					}
+				}
+				break;
+			case 93:
+				if(*memoryPtr)
+				{
+					for(n = 0; n < numberOfLoops; ++n)
+					{
+						if(it == whileE[n])
+						{
+							it = whileS[n];
+							break;
+						}
 					}
 				}
 				break;
 		}
 	}
-
-	return 0;
+	return SUCCESS;
 }
