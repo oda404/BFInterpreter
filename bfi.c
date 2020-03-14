@@ -25,51 +25,38 @@ int main(int argc, char **argv)
 		return INVALID_FILE;
 	}
 
-	char character;
-
-	size_t numberOfValidChars = 0, numberOfLoops = 0;
-
-	while((character = getc(file)) != EOF)
-		if(strchr("<>+-.,[]", character))
-		{
-			if(character == 91)
-				++numberOfLoops;
-			++numberOfValidChars;
-		}
-
-	char instructions[numberOfValidChars + 1], allocatedMemory[30000] = {0}, *memoryPtr = allocatedMemory;
-	int whileS[numberOfLoops + 1], whileE[numberOfLoops + 1], it = 0, n = 0;
-	memset(whileE, 0, numberOfLoops * sizeof(int));
-	memset(whileS, 0, numberOfLoops * sizeof(int));
-	numberOfLoops = 0;
-
-	fseek(file, 0, SEEK_SET);
+	char character, *instructions = malloc(sizeof(char)), allocatedMemory[30000] = {0}, *memoryPtr = allocatedMemory;
+	int index = 0, loopsIndex = 0, *whileS = malloc(sizeof(int)), *whileE = malloc(sizeof(int)), it = 0, n = 0;
 
 	while((character = getc(file)) != EOF)
 		if(strchr("<>+-.,[]", character))
 		{
 			if(character == 91)
 			{
-				whileS[numberOfLoops++] = it;
+				whileE[loopsIndex] = 0;
+				whileS[loopsIndex++] = index;
+				whileS = realloc(whileS, (loopsIndex + 1) * sizeof(int));
+				whileE = realloc(whileE, (loopsIndex + 1) * sizeof(int));
 			}
 			else if(character == 93)
 			{
-				int k = numberOfLoops - 1;
+				int k = loopsIndex - 1;
 				for(; k >= 0; --k)
 				{
 					if(!whileE[k])
 					{
-						whileE[k] = it;
+						whileE[k] = index;
 						break;
 					}
 				}
 			}
-			instructions[it++] = character;
+			instructions[index++] = character;
+			instructions = realloc(instructions, (index + 1) * sizeof(char));
 		}
 
 	fclose(file);
 
-	for(it = 0; it < sizeof(instructions); ++it)
+	for(it = 0; it < index; ++it)
 	{
 		switch(instructions[it])
 		{
@@ -82,7 +69,7 @@ int main(int argc, char **argv)
 			case 91:
 				if(!*memoryPtr)
 				{
-					for(n = 0; n < numberOfLoops; ++n)
+					for(n = 0; n < loopsIndex; ++n)
 					{
 						if(it == whileS[n])
 						{
@@ -95,7 +82,7 @@ int main(int argc, char **argv)
 			case 93:
 				if(*memoryPtr)
 				{
-					for(n = 0; n < numberOfLoops; ++n)
+					for(n = 0; n < loopsIndex; ++n)
 					{
 						if(it == whileE[n])
 						{
@@ -107,5 +94,6 @@ int main(int argc, char **argv)
 				break;
 		}
 	}
+	free(instructions); free(whileS); free(whileE);
 	return SUCCESS;
 }
