@@ -1,2 +1,2 @@
 output:
-	gcc bfi.c -o bfi
+	gcc -O2 src/bfi.c src/stack.c -o bfi
